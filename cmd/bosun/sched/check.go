@@ -210,7 +210,7 @@ func (s *Schedule) Check(T miniprofiler.Timer, now time.Time) (time.Duration, er
 	}
 	r := s.NewRunHistory(now, cache.New(0))
 	start := time.Now()
-	for _, ak := range s.findStaleAlerts(now) {
+	for _, ak := range s.findUnknownAlerts(now) {
 		r.Events[ak] = &Event{Status: StUnknown}
 	}
 	for _, a := range s.Conf.Alerts {
@@ -222,7 +222,7 @@ func (s *Schedule) Check(T miniprofiler.Timer, now time.Time) (time.Duration, er
 	return d, nil
 }
 
-func (s *Schedule) findStaleAlerts(now time.Time) []expr.AlertKey {
+func (s *Schedule) findUnknownAlerts(now time.Time) []expr.AlertKey {
 	keys := []expr.AlertKey{}
 	s.Lock()
 	for ak, st := range s.status {
