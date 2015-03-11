@@ -25,6 +25,14 @@ import (
 // http://opentsdb.net/docs/build/html/api_http/query/index.html#example-multi-set-response.
 type ResponseSet []*Response
 
+func (r ResponseSet) Copy() ResponseSet {
+	newSet := make(ResponseSet, len(r))
+	for i, resp := range r {
+		newSet[i] = resp.Copy()
+	}
+	return newSet
+}
+
 // Point is the Response data point type.
 type Point float64
 
@@ -35,6 +43,21 @@ type Response struct {
 	Tags          TagSet           `json:"tags"`
 	AggregateTags []string         `json:"aggregateTags"`
 	DPS           map[string]Point `json:"dps"`
+}
+
+func (r *Response) Copy() *Response {
+	newR := Response{}
+	newR.Metric = r.Metric
+	newR.Tags = r.Tags.Copy()
+	newR.AggregateTags = make([]string, len(r.AggregateTags))
+	for i, t := range r.AggregateTags {
+		newR.AggregateTags[i] = t
+	}
+	newR.DPS = map[string]Point{}
+	for k, v := range r.DPS {
+		newR.DPS[k] = v
+	}
+	return &newR
 }
 
 // DataPoint is a data point for the /api/put route:

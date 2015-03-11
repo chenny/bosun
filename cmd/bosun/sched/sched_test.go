@@ -205,3 +205,56 @@ func TestUnknown(t *testing.T) {
 		},
 	})
 }
+
+func TestRename(t *testing.T) {
+	testSched(t, &schedTest{
+		conf: `
+		alert ping.host {
+  
+    $q = max(rename(q("sum:bosun.ping.timeout{dst_host=*,host=ny-kbrandt02}", "5m", ""), "host=source,dst_host=host"))
+    warn = $q
+}
+
+		alert os.cpu {
+    			depends = max(rename(q("sum:bosun.ping.timeout{dst_host=*,host=ny-kbrandt02}", "5m", ""), "host=source,dst_host=host"))
+    			$q = avg(q("avg:os.cpu{host=*}", "5m", ""))
+    			warn = $q < 99
+			}`,
+		queries: map[string]opentsdb.ResponseSet{
+			`q("sum:bosun.ping.timeout{dst_host=*,host=ny-kbrandt02}", ` + window5Min + `)`: {
+				{
+					Metric: "bosun.ping.timeout",
+					Tags:   opentsdb.TagSet{"host": "ny-kbrandt02", "dst_host": "ny-web01"},
+					DPS:    map[string]opentsdb.Point{"0": 1},
+				},
+				{
+					Metric: "bosun.ping.timeout",
+					Tags:   opentsdb.TagSet{"host": "ny-kbrandt02", "dst_host": "ny-web02"},
+					DPS:    map[string]opentsdb.Point{"0": 0},
+				},
+				{
+					Metric: "bosun.ping.timeout",
+					Tags:   opentsdb.TagSet{"host": "ny-kbrandt02", "dst_host": "ny-kbrandt02"},
+					DPS:    map[string]opentsdb.Point{"0": 1},
+				},
+			},
+			`q("avg:os.cpu{host=*}", ` + window5Min + `)`: {
+				{
+					Metric: "os.cpu",
+					Tags:   opentsdb.TagSet{"host": "ny-web01"},
+					DPS:    map[string]opentsdb.Point{"0": 1},
+				},
+				{
+					Metric: "os.cpu",
+					Tags:   opentsdb.TagSet{"host": "ny-web02"},
+					DPS:    map[string]opentsdb.Point{"0": 1},
+				},
+			},
+		},
+		state: map[schedState]bool{
+			schedState{"ping.host{host=ny-kbrandt02,source=ny-kbrandt02}", "warning"}: true,
+			schedState{"ping.host{host=ny-web01,source=ny-kbrandt02}", "warning"}:     true,
+			schedState{"os.cpu{host=ny-web02}", "warning"}:                            true,
+		},
+	})
+}
