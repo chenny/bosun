@@ -175,7 +175,7 @@ func TestDependency_OtherAlert_Unknown(t *testing.T) {
 	})
 }
 
-func TestDependency_Blocks_Unknown_ABC(t *testing.T) {
+func TestDependency_Blocks_Unknown(t *testing.T) {
 	state := NewStatus("a{host=ny01}")
 	state.Touched = queryTime.Add(-10 * time.Minute)
 	state.Append(&Event{Status: StNormal, Time: state.Touched})
