@@ -248,14 +248,15 @@ func (s *Schedule) CheckAlert(T miniprofiler.Timer, r *RunHistory, a *conf.Alert
 	start := time.Now()
 	var warns, crits expr.AlertKeys
 	d, err := s.executeExpr(T, r, a, a.Depends)
+	var deps expr.ResultSlice
 	if err == nil {
-		deps := filterDependencyResults(d)
-		crits, err := s.CheckExpr(T, r, a, a.Crit, StCritical, nil, deps)
+		deps = filterDependencyResults(d)
+		crits, err := s.CheckExpr(T, r, a, a.Crit, StCritical, nil)
 		if err == nil {
-			warns, _ = s.CheckExpr(T, r, a, a.Warn, StWarning, crits, deps)
+			warns, _ = s.CheckExpr(T, r, a, a.Warn, StWarning, crits)
 		}
 	}
-
+	markDependenciesUnevaluated(r.Events, deps, a.Name)
 	collect.Put("check.duration", opentsdb.TagSet{"name": a.Name}, time.Since(start).Seconds())
 	log.Printf("check alert %v done (%s): %v crits, %v warns", a.Name, time.Since(start), len(crits), len(warns))
 }
@@ -280,6 +281,18 @@ func filterDependencyResults(results *expr.Results) expr.ResultSlice {
 		}
 	}
 	return filtered
+}
+
+func markDependenciesUnevaluated(events map[expr.AlertKey]*Event, deps expr.ResultSlice, alert string) {
+	for ak, ev := range events {
+		if ak.Name() == alert {
+			for _, dep := range deps {
+				if dep.Group.Overlaps(ak.Group()) {
+					ev.Unevaluated = true
+				}
+			}
+		}
+	}
 }
 
 func (s *Schedule) executeExpr(T miniprofiler.Timer, rh *RunHistory, a *conf.Alert, e *expr.Expr) (*expr.Results, error) {
@@ -309,7 +322,7 @@ func (s *Schedule) executeExpr(T miniprofiler.Timer, rh *RunHistory, a *conf.Ale
 	return results, err
 }
 
-func (s *Schedule) CheckExpr(T miniprofiler.Timer, rh *RunHistory, a *conf.Alert, e *expr.Expr, checkStatus Status, ignore expr.AlertKeys, deps expr.ResultSlice) (alerts expr.AlertKeys, err error) {
+func (s *Schedule) CheckExpr(T miniprofiler.Timer, rh *RunHistory, a *conf.Alert, e *expr.Expr, checkStatus Status, ignore expr.AlertKeys) (alerts expr.AlertKeys, err error) {
 	if e == nil {
 		return
 	}
@@ -352,11 +365,6 @@ Loop:
 		if event == nil {
 			event = new(Event)
 			rh.Events[ak] = event
-		}
-		for _, dep := range deps {
-			if dep.Group.Overlaps(r.Group) {
-				event.Unevaluated = true
-			}
 		}
 		result := Result{
 			Result: r,

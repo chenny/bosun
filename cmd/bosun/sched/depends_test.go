@@ -174,3 +174,32 @@ func TestDependency_OtherAlert_Unknown(t *testing.T) {
 		},
 	})
 }
+
+func TestDependency_Blocks_Unknown_ABC(t *testing.T) {
+	state := NewStatus("a{host=ny01}")
+	state.Touched = queryTime.Add(-10 * time.Minute)
+	state.Append(&Event{Status: StNormal, Time: state.Touched})
+
+	testSched(t, &schedTest{
+		conf: `alert a {
+			depends = avg(q("avg:b{host=*}", "5m", "")) > 0
+			warn = avg(q("avg:a{host=*}", "5m", "")) > 0
+		}`,
+		queries: map[string]opentsdb.ResponseSet{
+			`q("avg:a{host=*}", ` + window5Min + `)`: {
+			//no results for a. Goes unkown here.
+			},
+			`q("avg:b{host=*}", ` + window5Min + `)`: {
+				{
+					Metric: "os.cpu",
+					Tags:   opentsdb.TagSet{"host": "ny01"},
+					DPS:    map[string]opentsdb.Point{"0": 10},
+				},
+			},
+		},
+		state: map[schedState]bool{},
+		previous: map[expr.AlertKey]*State{
+			"a{host=ny01}": state,
+		},
+	})
+}

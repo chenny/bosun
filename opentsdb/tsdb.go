@@ -493,17 +493,7 @@ func (q Query) String() string {
 	}
 	s += q.Metric
 	if len(q.Tags) > 0 {
-		s += "{"
-		first := true
-		for k, v := range q.Tags {
-			if first {
-				first = false
-			} else {
-				s += ","
-			}
-			s += k + "=" + v
-		}
-		s += "}"
+		s += q.Tags.String()
 	}
 	return s
 }
