@@ -74,11 +74,11 @@ func (s *Schedule) RunHistory(r *RunHistory) {
 			s.status[ak] = state
 		}
 		last := state.AbnormalStatus()
-		state.Append(event)
 		if event.Unevaluated {
 			state.Unevaluated = true
 			continue
 		}
+		state.Append(event)
 		a := s.Conf.Alerts[ak.Name()]
 		wasOpen := state.Open
 		if event.Status > StNormal {
