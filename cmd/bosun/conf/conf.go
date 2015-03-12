@@ -1359,7 +1359,7 @@ func (c *Conf) alert(s *expr.State, T miniprofiler.Timer, name, key string) (res
 					break
 				}
 			}
-			if found {
+			if !found {
 				res := expr.Result{
 					Value: expr.Number(1),
 					Group: ak.Group(),
