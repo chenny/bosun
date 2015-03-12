@@ -260,16 +260,8 @@ func (c *Client) loadEntity(dst interface{}, src *ole.IDispatch) (errFieldMismat
 		defer prop.Clear()
 
 		switch val := prop.Value().(type) {
-		case int, int64:
-			var v int64
-			switch val := val.(type) {
-			case int:
-				v = int64(val)
-			case int64:
-				v = val
-			default:
-				panic("unexpected type")
-			}
+		case int8, int16, int32, int64, int:
+			v := reflect.ValueOf(val).Int()
 			switch f.Kind() {
 			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 				f.SetInt(v)
@@ -282,21 +274,36 @@ func (c *Client) loadEntity(dst interface{}, src *ole.IDispatch) (errFieldMismat
 					Reason:     "not an integer class",
 				}
 			}
+		case uint8, uint16, uint32, uint64:
+			v := reflect.ValueOf(val).Uint()
+			switch f.Kind() {
+			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+				f.SetInt(int64(v))
+			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+				f.SetUint(v)
+			default:
+				return &ErrFieldMismatch{
+					StructType: of.Type(),
+					FieldName:  n,
+					Reason:     "not an integer class",
+				}
+			}
 		case string:
-			iv, err := strconv.ParseInt(val, 10, 64)
 			switch f.Kind() {
 			case reflect.String:
 				f.SetString(val)
 			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+				iv, err := strconv.ParseInt(val, 10, 64)
 				if err != nil {
 					return err
 				}
 				f.SetInt(iv)
 			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+				uv, err := strconv.ParseUint(val, 10, 64)
 				if err != nil {
 					return err
 				}
-				f.SetUint(uint64(iv))
+				f.SetUint(uv)
 			case reflect.Struct:
 				switch f.Type() {
 				case timeType:
