@@ -74,8 +74,8 @@ func (s *Schedule) RunHistory(r *RunHistory) {
 			s.status[ak] = state
 		}
 		last := state.AbnormalStatus()
+		state.Unevaluated = event.Unevaluated
 		if event.Unevaluated {
-			state.Unevaluated = true
 			continue
 		}
 		state.Append(event)
@@ -224,8 +224,13 @@ func (s *Schedule) Check(T miniprofiler.Timer, now time.Time) (time.Duration, er
 	return d, nil
 }
 
+var bosunStartupTime = time.Now()
+
 func (s *Schedule) findUnknownAlerts(now time.Time) []expr.AlertKey {
 	keys := []expr.AlertKey{}
+	if time.Now().Sub(bosunStartupTime) < 1*time.Minute {
+		return keys
+	}
 	s.Lock()
 	for ak, st := range s.status {
 		if st.Forgotten {
