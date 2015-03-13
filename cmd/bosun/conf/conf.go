@@ -1345,8 +1345,10 @@ func (c *Conf) alert(s *expr.State, T miniprofiler.Timer, name, key string) (res
 		return nil, err
 	}
 	results, _, err = e.ExecuteState(s, T)
-
-	if s.History != nil {
+	if err != nil {
+		return nil, err
+	}
+	if s.History != nil && results.Results != nil {
 
 		unknownTags, unevalTags := s.History.GetUnknownAndUnevaluatedAlertKeys(name)
 
