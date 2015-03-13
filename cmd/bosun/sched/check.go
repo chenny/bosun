@@ -263,9 +263,10 @@ func (s *Schedule) CheckAlert(T miniprofiler.Timer, r *RunHistory, a *conf.Alert
 			warns, _ = s.CheckExpr(T, r, a, a.Warn, StWarning, crits)
 		}
 	}
-	depCount := markDependenciesUnevaluated(r.Events, deps, a.Name)
+	depCount, unknownCount := markDependenciesUnevaluated(r.Events, deps, a.Name)
+
 	collect.Put("check.duration", opentsdb.TagSet{"name": a.Name}, time.Since(start).Seconds())
-	log.Printf("check alert %v done (%s): %v crits, %v warns, %v unevaluated", a.Name, time.Since(start), len(crits), len(warns), depCount)
+	log.Printf("check alert %v done (%s): %v crits, %v warns, %v unevaluated, %v unknown", a.Name, time.Since(start), len(crits), len(warns), depCount, unknownCount)
 }
 
 func filterDependencyResults(results *expr.Results) expr.ResultSlice {
@@ -290,18 +291,22 @@ func filterDependencyResults(results *expr.Results) expr.ResultSlice {
 	return filtered
 }
 
-func markDependenciesUnevaluated(events map[expr.AlertKey]*Event, deps expr.ResultSlice, alert string) int {
-	i := 0
+func markDependenciesUnevaluated(events map[expr.AlertKey]*Event, deps expr.ResultSlice, alert string) (depCount, unknownCount int) {
+	unevalCount, unknownCount := 0, 0
 	for ak, ev := range events {
 		if ak.Name() == alert {
 			for _, dep := range deps {
 				if dep.Group.Overlaps(ak.Group()) {
 					ev.Unevaluated = true
-					i++
+					unevalCount++
+				}
+				if ev.Status == StUnknown {
+					unknownCount++
 				}
 			}
 		}
 	}
+	return unevalCount, unknownCount
 }
 
 func (s *Schedule) executeExpr(T miniprofiler.Timer, rh *RunHistory, a *conf.Alert, e *expr.Expr) (*expr.Results, error) {
